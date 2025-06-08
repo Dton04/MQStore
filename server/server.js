@@ -4,12 +4,18 @@ const cors = require('cors');
 const db = require('./db'); 
 
 const app = express();
-app.use(cors());
+app.use(cors({
+     origin: [
+    'http://localhost:3000', ''
+  ],
+  credentials: true
+
+}));
 app.use(express.json());
 
 // Các routes
 app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/products', require('./routes/ProductRoutes'));
+app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/categories', require('./routes/categoryRoutes')); 
 app.use('/api/transactions', require('./routes/transactionRoutes'));
 app.use('/api/debts', require('./routes/debtRoutes'));
