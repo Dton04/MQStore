@@ -6,7 +6,7 @@ const db = require('./db');
 const app = express();
 app.use(cors({
      origin: [
-    'http://localhost:3000', 'https://mqstore-be.onrender.com'
+    'http://localhost:3000', 'https://myquyenstore.onrender.com'
   ],
   credentials: true
 
