@@ -23,10 +23,8 @@ const TransactionList = () => {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [groupedTransactions, setGroupedTransactions] = useState([]);
 
-  // Sử dụng REACT_APP_API_URL từ .env
   const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-  // Lấy danh sách giao dịch khi component mount
   useEffect(() => {
     fetchTransactions();
     if (user?.role === 'admin') {
@@ -37,26 +35,12 @@ const TransactionList = () => {
 
   useEffect(() => {
     if (transactions.length > 0) {
-      const grouped = transactions.reduce((acc, transaction) => {
-        const key = `${transaction.user}_${moment(transaction.createdAt).format('YYYY-MM-DD_HH:mm')}`;
-        if (!acc[key]) {
-          acc[key] = {
-            user: transaction.user,
-            date: transaction.createdAt,
-            items: [],
-            totalAmount: 0,
-            status: transaction.status
-          };
-        }
-        acc[key].items.push(transaction);
-        acc[key].totalAmount += transaction.totalPrice;
-        return acc;
-      }, {});
-
-      const groupedArray = Object.values(grouped).sort((a, b) => 
-        moment(b.date).valueOf() - moment(a.date).valueOf()
+      const sortedTransactions = transactions.sort((a, b) => 
+        moment(b.createdAt).valueOf() - moment(a.createdAt).valueOf()
       );
-      setGroupedTransactions(groupedArray);
+      setGroupedTransactions(sortedTransactions);
+    } else {
+      setGroupedTransactions([]);
     }
   }, [transactions]);
 
@@ -131,8 +115,8 @@ const TransactionList = () => {
       return;
     }
 
-    if (selectedItems.length === 0 && !totalAmount) {
-      setError('Vui lòng thêm sản phẩm hoặc nhập tổng tiền.');
+    if (selectedItems.length === 0 && (!totalAmount || parseFloat(totalAmount) <= 0)) {
+      setError('Vui lòng thêm sản phẩm hoặc nhập tổng tiền hợp lệ.');
       return;
     }
 
@@ -141,25 +125,25 @@ const TransactionList = () => {
       setError('');
 
       if (selectedItems.length > 0) {
-        // Tạo nhiều giao dịch cho từng sản phẩm
-        await Promise.all(selectedItems.map(item => 
-          axios.post(
-            `${API_URL}/api/transactions`,
-            {
-              productId: item.productId,
-              quantity: item.quantity,
-              user: newTransaction.user
-            },
-            { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-          )
-        ));
-      } else if (totalAmount) {
-        // Tạo một giao dịch với tổng tiền
+        const items = selectedItems.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity
+        }));
+
         await axios.post(
           `${API_URL}/api/transactions`,
           {
-            totalPrice: parseFloat(totalAmount),
-            quantity: 1,
+            items,
+            user: newTransaction.user
+          },
+          { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+        );
+      } else {
+        await axios.post(
+          `${API_URL}/api/transactions`,
+          {
+            items: [],
+            totalAmount: parseFloat(totalAmount),
             user: newTransaction.user,
             status: 'pending'
           },
@@ -181,7 +165,6 @@ const TransactionList = () => {
     }
   };
 
-  // Hàm để làm mới danh sách giao dịch (có thể gọi từ ProductList.js)
   const refreshTransactions = async () => {
     await fetchTransactions();
     setSuccess('Danh sách giao dịch đã được làm mới!');
@@ -217,7 +200,6 @@ const TransactionList = () => {
           {success && <div className="alert alert-success">{success}</div>}
           {loading && <div className="alert alert-info">Đang tải...</div>}
 
-          {/* Modal tạo hóa đơn */}
           {showCreateModal && (
             <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
               <div className="modal-dialog modal-lg">
@@ -255,7 +237,7 @@ const TransactionList = () => {
 
                       <div className="mb-3">
                         <div className="d-flex justify-content-between align-items-center mb-2">
-                          <h6>Danh sách sản phẩm</h6>
+                          <h6>Danh sách sản phẩm (Tùy chọn)</h6>
                           <button
                             type="button"
                             className="btn btn-primary btn-sm"
@@ -310,23 +292,22 @@ const TransactionList = () => {
                         ))}
                       </div>
 
+                      <div className="mb-3">
+                        <label className="form-label">Tổng tiền (Nhập nếu không chọn sản phẩm)</label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          placeholder="Nhập tổng tiền"
+                          value={totalAmount}
+                          onChange={(e) => setTotalAmount(e.target.value)}
+                          min="0"
+                          disabled={selectedItems.length > 0}
+                        />
+                      </div>
+
                       {selectedItems.length > 0 && (
                         <div className="alert alert-info">
-                          Tổng tiền: {totalAmount.toLocaleString()} VNĐ
-                        </div>
-                      )}
-
-                      {selectedItems.length === 0 && (
-                        <div className="mb-3">
-                          <label className="form-label">Hoặc nhập tổng tiền trực tiếp</label>
-                          <input
-                            type="number"
-                            className="form-control"
-                            placeholder="Nhập tổng tiền"
-                            value={totalAmount}
-                            onChange={(e) => setTotalAmount(parseFloat(e.target.value))}
-                            min="0"
-                          />
+                          Tổng tiền: {totalAmount ? totalAmount.toLocaleString() : '0'} VNĐ
                         </div>
                       )}
                     </div>
@@ -379,8 +360,9 @@ const TransactionList = () => {
                           moment(selectedInvoice?.date).isSame(invoice.date) ? 'table-active' : ''}
                       >
                         <td>{invoice.user}</td>
-                        <td>{invoice.totalAmount.toLocaleString()} VNĐ</td>
-                        <td>{moment(invoice.date).format('DD/MM/YYYY HH:mm')}</td>
+                        <td>{invoice.totalAmount ? invoice.totalAmount.toLocaleString() : '0'} VNĐ</td>
+                        <td>{moment(invoice.createdAt).format('DD/MM/YYYY HH:mm')}</td>
+
                         <td>
                           <span
                             className={`badge ${
@@ -406,14 +388,22 @@ const TransactionList = () => {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {invoice.items.map((item, itemIndex) => (
-                                    <tr key={itemIndex}>
-                                      <td>{item.product?.name || 'Sản phẩm không xác định'}</td>
-                                      <td>{item.quantity}</td>
-                                      <td>{(item.totalPrice / item.quantity).toLocaleString()} VNĐ</td>
-                                      <td>{item.totalPrice.toLocaleString()} VNĐ</td>
+                                  {invoice.items.length > 0 ? (
+                                    invoice.items.map((item, itemIndex) => (
+                                      <tr key={itemIndex}>
+                                        <td>{item.product?.name || 'Sản phẩm không xác định'}</td>
+                                        <td>{item.quantity}</td>
+                                        <td>{item.price && item.quantity ? (item.price / item.quantity).toLocaleString() : '0'} VNĐ</td>
+                                        <td>{item.price ? item.price.toLocaleString() : '0'} VNĐ</td>
+                                      </tr>
+                                    ))
+                                  ) : (
+                                    <tr>
+                                      <td colSpan="4" className="text-center">
+                                        Giao dịch không có thông tin chi tiết sản phẩm
+                                      </td>
                                     </tr>
-                                  ))}
+                                  )}
                                 </tbody>
                               </table>
                             </div>

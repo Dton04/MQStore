@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const transactionSchema = new mongoose.Schema({
+const transactionItemSchema = new mongoose.Schema({
   product: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product',
@@ -11,7 +11,16 @@ const transactionSchema = new mongoose.Schema({
     required: true,
     min: 1,
   },
-  totalPrice: {
+  price: {
+    type: Number,
+    required: true,
+    min: 0,
+  }
+});
+
+const transactionSchema = new mongoose.Schema({
+  items: [transactionItemSchema],
+  totalAmount: {
     type: Number,
     required: true,
     min: 0,

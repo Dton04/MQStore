@@ -309,11 +309,12 @@ const ProductList = () => {
   const handleRemoveFromCart = (productId) => {
     setCartItems(cartItems.filter((item) => item.productId !== productId));
   };
-
   const calculateCartTotal = () => {
-    return cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
-  };
-  const handleCreateTransaction = async () => {
+    return cartItems.reduce((total, item) => {
+      const itemTotal = item.price && item.quantity ? item.price * item.quantity : 0;
+      return total + itemTotal;
+    }, 0);
+  };const handleCreateTransaction = async () => {
     if (!cartUser && !user) {
       setError('Vui lòng nhập tên người dùng hoặc đăng nhập.');
       return;
@@ -326,19 +327,24 @@ const ProductList = () => {
       setLoading(true);
       setError('');
       setSuccess('');
-      for (const item of cartItems) {
-        await axios.post(
-          `${API_URL}/api/transactions`,
-          {
-            productId: item.productId,
-            quantity: item.quantity,
-            user: user ? user.username : cartUser,
-          },
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-      }
+
+      // Gom tất cả sản phẩm vào một giao dịch
+      const items = cartItems.map(item => ({
+        productId: item.productId,
+        quantity: item.quantity
+      }));
+
+      await axios.post(
+        `${API_URL}/api/transactions`,
+        {
+          items,
+          user: user ? user.username : cartUser
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      
       setSuccess('Tạo giao dịch thành công!');
       setCartItems([]);
       setCartUser('');
@@ -615,8 +621,7 @@ const ProductList = () => {
                           <tbody>
                             {cartItems.map((item) => (
                               <tr key={item.productId}>
-                                <td>{item.name}</td>
-                                <td>{item.price.toLocaleString()}</td>
+                                <td>{item.name}</td>                                <td>{item.price ? item.price.toLocaleString() : '0'}</td>
                                 <td>
                                   <input
                                     type="number"
@@ -629,7 +634,7 @@ const ProductList = () => {
                                     style={{ width: '80px' }}
                                   />
                                 </td>
-                                <td>{(item.price * item.quantity).toLocaleString()}</td>
+                                <td>{item.price && item.quantity ? (item.price * item.quantity).toLocaleString() : '0'}</td>
                                 <td>
                                   <button
                                     className="btn btn-danger btn-sm"
@@ -783,11 +788,10 @@ const ProductList = () => {
                 {products.map((p) => (
                   <tr key={p._id}>
                     <td>{p.sku}</td>
-                    <td>{p.name}</td>
-                    <td>{p.category ? p.category.name : 'Chưa phân loại'}</td>
-                    <td>{p.price.toLocaleString()}</td>
-                    <td>{p.quantity}</td>
-                    <td>{p.status === 'in_stock' ? 'Còn hàng' : 'Hết hàng'}</td>                    <td>
+                    <td>{p.name}</td>                    <td>{p.category ? p.category.name : 'Chưa phân loại'}</td>
+                    <td>{p.price ? p.price.toLocaleString() : '0'}</td>
+                    <td>{p.quantity || 0}</td>
+                    <td>{p.status === 'in_stock' ? 'Còn hàng' : 'Hết hàng'}</td><td>
                       {user?.role === 'admin' && (
                         <>
                           <button

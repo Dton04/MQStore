@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 
@@ -85,7 +86,7 @@ router.post('/login', async (req, res) => {
 // GET /api/auth/users - Lấy danh sách người dùng (chỉ dành cho admin)
 router.get('/users', authMiddleware(['admin']), async (req, res) => {
   try {
-    const users = await User.find({}, 'email username role debtAmount');
+    const users = await User.find({}, 'email username role debtAmount lastDebtUpdate');
     res.json(users);
   } catch (err) {
     console.error('Error in GET /api/auth/users:', err.message, err.stack);
@@ -96,15 +97,34 @@ router.get('/users', authMiddleware(['admin']), async (req, res) => {
 // PUT /api/auth/users/:id/debt - Cập nhật số tiền nợ (chỉ dành cho admin)
 router.put('/users/:id/debt', authMiddleware(['admin']), async (req, res) => {
   try {
+    const userId = req.params.id;
+    if (!userId) {
+      return res.status(400).json({ error: 'ID người dùng không hợp lệ.' });
+    }
+
     const { debtAmount } = req.body;
-    
-    if (debtAmount < 0) {
+    if (debtAmount === undefined || debtAmount === null) {
+      return res.status(400).json({ error: 'Vui lòng nhập số tiền nợ.' });
+    }
+
+    const amount = parseFloat(debtAmount);
+    if (isNaN(amount)) {
+      return res.status(400).json({ error: 'Số tiền nợ không hợp lệ.' });
+    }
+
+    if (amount < 0) {
       return res.status(400).json({ error: 'Số tiền nợ không được âm.' });
     }
 
+    // Kiểm tra người dùng tồn tại trước khi cập nhật
+    const existingUser = await User.findById(userId);
+    if (!existingUser) {
+      return res.status(404).json({ error: 'Không tìm thấy người dùng.' });
+    }
+
     const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { debtAmount: debtAmount },
+      userId,
+      { $set: { debtAmount: amount } },
       { new: true, runValidators: true }
     );
 

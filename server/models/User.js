@@ -22,11 +22,14 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['user', 'admin'],
     default: 'user',
-  },
-  debtAmount: {
+  },  debtAmount: {
     type: Number,
     default: 0,
     min: 0
+  },
+  lastDebtUpdate: {
+    type: Date,
+    default: Date.now
   },
   createdAt: {
     type: Date,

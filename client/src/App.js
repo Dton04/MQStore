@@ -8,6 +8,7 @@ import ProductList from './components/ProductList';
 import CategoryList from './components/CategoryList';
 import TransactionList from './components/TransactionList';
 import DebtManagement from './components/DebtManagement';
+import DebtList from './components/DebtList';
 import UserManagement from './components/UserManagement';
 import Home from './components/Home';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -58,6 +59,10 @@ const App = () => {
               <Route
                 path="/debts"
                 element={<PrivateRoute component={DebtManagement} roles={['admin']} />}
+              />
+              <Route
+                path="/debt-list"
+                element={<PrivateRoute component={DebtList} roles={['admin']} />}
               />
               <Route
                 path="/users"
